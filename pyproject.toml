@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "dynamo_api"
-version = "0.1.3"
+version = "0.1.4"
 description = "Package to perform simple operations on AWS DynamoDB for personal use and playing around with Github Actions"
 authors = ["Justin Lei <jun.lei@mail.mcgill.ca>"]
 license = "MIT"
