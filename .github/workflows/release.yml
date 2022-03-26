@@ -8,7 +8,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout code
+        uses: actions/checkout@v2
       - name: Set up Python 3.8
         uses: actions/setup-python@v2
         with:
@@ -20,9 +21,17 @@ jobs:
       - name: Lint
         run: |
           poetry run flake8
+      - name: Build and start container
+        run: |
+          chmod +x ./build.sh
+          ./build.sh build_db
+          ./build.sh start_db
       - name: Test with pytest
         run: |
           poetry run pytest --cov=./ --cov-report=xml
+      - name: Teardown container
+        run: |
+          ./build.sh teardown
       - name: Upload code coverage
         uses: codecov/codecov-action@v1
         with:
