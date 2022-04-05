@@ -24,11 +24,14 @@ def get(table_name, key, dynamodb):
     try:
         response = table.get_item(Key=key)
     except ClientError as e:
-        msg = e.response['Error']['Message']
-        print(msg)
+        print(e.response)
         raise
     else:
-        return response['Item']
+        try:
+            return response['Item']
+        except KeyError:
+            print("No items found")
+            raise
 
 
 def update(table_name, key, update_expr, expr_values, dynamodb):
@@ -47,8 +50,40 @@ def delete(table_name, key, dynamodb):
     try:
         response = table.delete_item(Key=key)
     except ClientError as e:
-        msg = e.response['Error']['Message']
-        print(msg)
+        print(e.response)
+        raise
+    else:
+        return response
+
+
+def conditional_update(table_name, key, update_expr,
+                       condition_expr, expr_values, dynamodb):
+    table = dynamodb.Table(table_name)
+    try:
+        response = table.update_item(
+            Key=key,
+            UpdateExpression=update_expr,
+            ConditionExpression=condition_expr,
+            ExpressionAttributeValues=expr_values,
+            ReturnValues="UPDATED_NEW"
+        )
+    except ClientError as e:
+        print(e.response)
+        raise
+    else:
+        return response
+
+
+def conditional_delete(table_name, key, condition_expr, expr_values, dynamodb):
+    table = dynamodb.Table(table_name)
+    try:
+        response = table.delete_item(
+            Key=key,
+            ConditionExpression=condition_expr,
+            ExpressionAttributeValues=expr_values
+        )
+    except ClientError as e:
+        print(e.response)
         raise
     else:
         return response
