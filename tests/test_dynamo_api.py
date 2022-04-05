@@ -3,10 +3,11 @@ import pytest
 from botocore.exceptions import ClientError
 from dynamo_api import __version__
 from dynamo_api.dynamo_api import create_resource, put, get, update, delete
+from dynamo_api.dynamo_api import conditional_update, conditional_delete
 
 
 def test_version():
-    assert __version__ == '0.1.4'
+    assert __version__ == '0.1.5'
 
 
 config = {
@@ -109,6 +110,93 @@ def test_delete_error():
     conn = create_resource(config)
     with pytest.raises(ClientError):
         delete("Test", {'name': 1}, conn)
+
+
+def test_conditional_update_updated():
+    conn = create_resource(config)
+    test_object = {
+        'id': 1,
+        'name': 'test',
+        'score': 90
+    }
+    put("Test", test_object, conn)
+    update_expr = "set score=:new_score"
+    condition_expr = "score > :threshold"
+    expression_values = {
+        ':new_score': 10,
+        ':threshold': 80
+    }
+    response = conditional_update("Test", {'id': 1}, update_expr,
+                                  condition_expr, expression_values, conn)
+    assert response['ResponseMetadata']['HTTPStatusCode'] == 200
+
+    get_response = get("Test", {'id': 1}, conn)
+    assert get_response['score'] == 10
+
+
+def test_conditional_update_maintained():
+    conn = create_resource(config)
+    test_object = {
+        'id': 1,
+        'name': 'test',
+        'score': 90
+    }
+    put("Test", test_object, conn)
+    update_expr = "set score=:new_score"
+    condition_expr = ":threshold > score"
+    expression_values = {
+        ':new_score': 10,
+        ':threshold': 80
+    }
+
+    with pytest.raises(ClientError):
+        conditional_update("Test", {'id': 1}, update_expr,
+                           condition_expr, expression_values, conn)
+
+    get_response = get("Test", {'id': 1}, conn)
+    assert get_response['score'] == 90
+
+
+def test_conditional_delete_succeeded():
+    conn = create_resource(config)
+    test_object = {
+        'id': 1,
+        'name': 'test',
+        'score': 90
+    }
+    put("Test", test_object, conn)
+    condition_expr = "score > :threshold"
+    expression_values = {
+        ':threshold': 80
+    }
+
+    response = conditional_delete("Test", {'id': 1},
+                                  condition_expr, expression_values, conn)
+    assert response['ResponseMetadata']['HTTPStatusCode'] == 200
+
+    with pytest.raises(KeyError):
+        get("Test", {'id': 1}, conn)
+
+
+def test_conditional_delete_failed():
+    conn = create_resource(config)
+    test_object = {
+        'id': 1,
+        'name': 'test',
+        'score': 90
+    }
+    put("Test", test_object, conn)
+    condition_expr = "score < :threshold"
+    expression_values = {
+        ':threshold': 80
+    }
+
+    with pytest.raises(ClientError):
+        conditional_delete("Test", {'id': 1},
+                           condition_expr, expression_values, conn)
+
+    get_response = get("Test", {'id': 1}, conn)
+    assert get_response['score'] == 90
 
 
 def teardown_function():
